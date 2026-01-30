@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { GameState, ClassType, BiomeType, ToneType, AIResponse, Achievement } from './types';
 import { processPlayerAction, playNarrativeAudio } from './services/gemini';
