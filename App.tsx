@@ -6,7 +6,6 @@ import Visualizer from './components/Visualizer';
 import NarrativePanel from './components/NarrativePanel';
 import LandingPage from './components/LandingPage';
 import { Icons, COLORS } from './constants';
-import './index.css';
 
 const ACHIEVEMENTS: Achievement[] = [
   { id: 'first_blood', title: 'First Blood', description: 'Defeat your first dungeon denizen.' },
