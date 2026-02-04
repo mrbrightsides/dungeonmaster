@@ -69,12 +69,12 @@ const NarrativePanel: React.FC<NarrativePanelProps> = ({ logs, isThinking, onNar
                 <div 
                     key={i} 
                     className={`text-sm md:text-base leading-relaxed animate-in slide-in-from-bottom-2 duration-300 ${
-                        isUser ? 'text-blue-400 font-bold italic pl-2 border-l-2 border-blue-900' : 'text-neutral-200'
+                        isUser ? 'text-orange-400 font-bold italic pl-2 border-l-2 border-orange-900' : 'text-neutral-200'
                     }`}
                 >
                     {content}
                     {isCurrentlyTyping && (
-                        <span className="inline-block w-1.5 h-4 bg-blue-500 ml-1 animate-pulse align-middle"></span>
+                        <span className="inline-block w-1.5 h-4 bg-orange-500 ml-1 animate-pulse align-middle"></span>
                     )}
                 </div>
             )

@@ -1,8 +1,10 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { GameState, ClassType, BiomeType, ToneType, AIResponse, Achievement } from './types';
 import { processPlayerAction, playNarrativeAudio } from './services/gemini';
 import Visualizer from './components/Visualizer';
 import NarrativePanel from './components/NarrativePanel';
+import LandingPage from './components/LandingPage';
 import { Icons, COLORS } from './constants';
 
 const ACHIEVEMENTS: Achievement[] = [
@@ -56,9 +58,11 @@ const initialState: GameState = {
   achievements: []
 };
 
+type AppView = 'landing' | 'setup' | 'play';
+
 const App: React.FC = () => {
+  const [currentView, setCurrentView] = useState<AppView>('landing');
   const [gameState, setGameState] = useState<GameState>(initialState);
-  const [isStarted, setIsStarted] = useState(false);
   const [actionInput, setActionInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const [toasts, setToasts] = useState<string[]>([]);
@@ -203,26 +207,32 @@ const App: React.FC = () => {
         tone: selectedTone,
         narrativeLog: [initialNarrative]
     });
-    setIsStarted(true);
+    setCurrentView('play');
   };
 
-  if (!isStarted) {
+  if (currentView === 'landing') {
+    return <LandingPage onStart={() => setCurrentView('setup')} />;
+  }
+
+  if (currentView === 'setup') {
     return (
       <div className="min-h-screen flex flex-col items-center justify-start p-6 bg-[#0a0a0a] relative overflow-y-auto custom-scrollbar pt-16">
         <div className="absolute inset-0 opacity-20 pointer-events-none">
             <div className="w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-900 via-amber-900/10 to-transparent"></div>
         </div>
         
-        <h1 className="cinzel text-5xl md:text-7xl mb-4 text-center tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white via-orange-300 to-amber-600 drop-shadow-[0_0_15px_rgba(251,191,36,0.3)]">
-          AI DUNGEON MASTER
-        </h1>
-        <p className="text-orange-500 mb-12 max-w-md text-center cinzel tracking-widest uppercase text-xs font-bold animate-pulse">
-          An Infinite Adventure Crafted by Gemini 3
-        </p>
+        <div className="relative z-10 flex flex-col items-center">
+            <h1 className="cinzel text-4xl md:text-5xl mb-2 text-center tracking-tighter text-white">
+              INITIALIZE YOUR SAGA
+            </h1>
+            <p className="text-orange-500 mb-12 max-w-md text-center cinzel tracking-widest uppercase text-[10px] font-bold">
+              The Dungeon Master awaits your decisions
+            </p>
+        </div>
 
-        <div className="w-full max-w-5xl space-y-12 pb-12">
+        <div className="w-full max-w-5xl space-y-12 pb-12 relative z-10">
             {/* Step 1: Setting */}
-            <section>
+            <section className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <h2 className="cinzel text-xl text-orange-500 mb-6 border-b border-orange-900/30 pb-2 flex items-center gap-4">
                     <span className="bg-gradient-to-br from-orange-500 to-amber-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] shadow-[0_0_10px_rgba(245,158,11,0.5)] font-bold">1</span>
                     Choose Your Starting Setting
@@ -246,7 +256,7 @@ const App: React.FC = () => {
             </section>
 
             {/* Step 2: Tone */}
-            <section>
+            <section className="animate-in fade-in slide-in-from-bottom-4 duration-700">
                 <h2 className="cinzel text-xl text-orange-500 mb-6 border-b border-orange-900/30 pb-2 flex items-center gap-4">
                     <span className="bg-gradient-to-br from-orange-500 to-amber-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] shadow-[0_0_10px_rgba(245,158,11,0.5)] font-bold">2</span>
                     Select Your Narrative Tone
@@ -270,7 +280,7 @@ const App: React.FC = () => {
             </section>
 
             {/* Step 3: Class */}
-            <section>
+            <section className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
                 <h2 className="cinzel text-xl text-orange-500 mb-6 border-b border-orange-900/30 pb-2 flex items-center gap-4">
                     <span className="bg-gradient-to-br from-orange-500 to-amber-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] shadow-[0_0_10px_rgba(245,158,11,0.5)] font-bold">3</span>
                     Pick Your Hero Class
@@ -304,6 +314,13 @@ const App: React.FC = () => {
                 </div>
             </section>
         </div>
+
+        <button 
+            onClick={() => setCurrentView('landing')}
+            className="mt-12 text-neutral-600 hover:text-orange-500 text-[10px] uppercase tracking-[0.2em] cinzel transition-colors"
+        >
+            &larr; Return to Entrance
+        </button>
       </div>
     );
   }
@@ -364,7 +381,7 @@ const App: React.FC = () => {
               <Icons.Gold />
             </div>
           </div>
-          <button onClick={() => setGameState(initialState)} className="p-2 text-neutral-600 hover:text-orange-500 transition-colors bg-black/40 rounded border border-white/5">
+          <button onClick={() => { setGameState(initialState); setCurrentView('landing'); }} className="p-2 text-neutral-600 hover:text-orange-500 transition-colors bg-black/40 rounded border border-white/5">
              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
           </button>
         </div>
@@ -450,7 +467,7 @@ const App: React.FC = () => {
                 <div className="flex flex-col items-center gap-4 py-2">
                     <div className="cinzel text-red-500 text-xl animate-pulse tracking-[0.2em] font-bold">YOUR STORY HAS ENDED</div>
                     <button 
-                        onClick={() => { setGameState(initialState); setIsStarted(false); }}
+                        onClick={() => { setGameState(initialState); setCurrentView('landing'); }}
                         className="bg-white text-black px-12 py-3 font-bold cinzel hover:bg-neutral-200 transition-all text-xs tracking-widest active:scale-95"
                     >
                         Reincarnate
