@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { GameState, ClassType, BiomeType, ToneType, AIResponse, Achievement, StatusEffect } from './types';
+import { GameState, ClassType, BiomeType, ToneType, AIResponse, Achievement, StatusEffect, Rarity } from './types';
 import { processPlayerAction, playNarrativeAudio } from './services/gemini';
 import Visualizer from './components/Visualizer';
 import NarrativePanel from './components/NarrativePanel';
@@ -72,6 +72,7 @@ const App: React.FC = () => {
   const [toasts, setToasts] = useState<string[]>([]);
   const [hasSave, setHasSave] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [enemyAbilityDisplay, setEnemyAbilityDisplay] = useState<string | null>(null);
 
   const [selectedBiome, setSelectedBiome] = useState<BiomeType>(BiomeType.FOREST);
   const [selectedTone, setSelectedTone] = useState<ToneType>(ToneType.CLASSIC);
@@ -109,6 +110,7 @@ const App: React.FC = () => {
     const action = actionInput;
     setActionInput('');
     setIsThinking(true);
+    setEnemyAbilityDisplay(null);
     
     const lowerAction = action.toLowerCase();
     if (lowerAction.includes('attack') || lowerAction.includes('strike') || lowerAction.includes('hit')) {
@@ -160,6 +162,11 @@ const App: React.FC = () => {
 
     const response: AIResponse = await processPlayerAction(action, gameState);
     
+    if (response.enemyActionUsed) {
+        setEnemyAbilityDisplay(response.enemyActionUsed);
+        setTimeout(() => setEnemyAbilityDisplay(null), 3000);
+    }
+
     setGameState(prev => {
       let newState = { ...prev };
       newState.narrativeLog = [...newState.narrativeLog, response.narrative];
@@ -480,19 +487,51 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex flex-col items-center">
-             <div className="flex items-center gap-2 px-3 py-1 rounded-full border border-orange-900 bg-orange-900/20 shadow-[0_0_10px_rgba(245,158,11,0.1)]">
+        <div className="flex flex-col items-center gap-1.5">
+             <div className="flex items-center gap-2 px-3 py-1 rounded-full border border-orange-900 bg-orange-900/20 shadow-[0_0_10px_rgba(245,158,11,0.1)] transition-all hover:scale-105">
                 <Icons.ClassIcon className={gameState.player.class} />
-                <span className="text-xs text-orange-300 font-bold uppercase tracking-[0.1em]">{gameState.player.class}</span>
+                <span className="text-xs text-orange-300 font-bold uppercase tracking-[0.2em] cinzel">{gameState.player.class}</span>
              </div>
-             {/* Player Status Effects in HUD */}
-             <div className="flex gap-1 mt-1">
-                 {gameState.player.statusEffects.map(e => (
-                     <div key={e.id} title={`${e.name}: ${e.description} (${e.duration}t)`} className={`text-xs px-1 rounded flex items-center gap-0.5 ${e.type === 'buff' ? 'bg-blue-900/40 text-blue-300' : 'bg-red-900/40 text-red-300'} border border-white/5`}>
-                         <span>{e.icon}</span>
-                         <span className="text-[8px] font-bold">{e.duration}</span>
-                     </div>
-                 ))}
+             
+             {/* Dedicated Player Status Effects Section */}
+             <div className="flex items-center gap-1.5 h-6">
+                 {gameState.player.statusEffects.length > 0 ? (
+                    gameState.player.statusEffects.map((e) => (
+                        <div 
+                            key={e.id} 
+                            className={`group relative flex items-center gap-1 px-1.5 py-0.5 rounded border backdrop-blur-md transition-all animate-in zoom-in-75 duration-300 cursor-help
+                                ${e.type === 'buff' 
+                                    ? 'bg-blue-500/10 border-blue-500/30 text-blue-300 shadow-[0_0_10px_rgba(59,130,246,0.1)]' 
+                                    : 'bg-red-500/10 border-red-500/30 text-red-300 shadow-[0_0_10px_rgba(239,68,68,0.1)]'
+                                }`}
+                        >
+                            <span className="text-xs leading-none">{e.icon}</span>
+                            <span className="text-[9px] font-black leading-none">{e.duration}</span>
+                            
+                            {/* Rich Tooltip */}
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 p-2 bg-black/95 border border-white/10 rounded shadow-2xl opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-[100] backdrop-blur-xl">
+                                <div className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${e.type === 'buff' ? 'text-blue-400' : 'text-red-400'}`}>
+                                    {e.name}
+                                </div>
+                                <p className="text-[9px] text-neutral-400 leading-tight mb-2 italic">
+                                    {e.description}
+                                </p>
+                                {e.modifiers && (
+                                    <div className="space-y-0.5 border-t border-white/5 pt-1">
+                                        {Object.entries(e.modifiers).map(([stat, val]) => (
+                                            <div key={stat} className="flex justify-between text-[8px] uppercase tracking-tighter">
+                                                <span className="text-neutral-500">{stat}</span>
+                                                <span className={val > 0 ? 'text-green-400' : 'text-red-400'}>{val > 0 ? '+' : ''}{val}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))
+                 ) : (
+                    <span className="text-[8px] text-neutral-700 font-bold uppercase tracking-widest opacity-40">Steady Condition</span>
+                 )}
              </div>
         </div>
 
@@ -556,9 +595,21 @@ const App: React.FC = () => {
                 </div>
                 <div className="grid grid-cols-4 gap-2">
                     {gameState.player.inventory.map((item, i) => (
-                        <div key={i} title={`${item.name} (+${item.bonus.value} ${item.bonus.stat})`} 
-                             className={`w-12 h-12 bg-black/60 rounded border border-white/5 flex items-center justify-center cursor-help transition-all hover:scale-105 active:scale-95 group`}>
-                             <div className={`text-xl drop-shadow-lg ${(COLORS as any)[item.rarity]} group-hover:scale-110 transition-transform`}>
+                        <div 
+                          key={i} 
+                          title={`${item.name} (${item.rarity})\n+${item.bonus.value} ${item.bonus.stat}`} 
+                          className={`w-12 h-12 bg-black/60 rounded border flex items-center justify-center cursor-help transition-all hover:scale-110 active:scale-95 group relative overflow-hidden
+                            ${item.rarity === Rarity.COMMON ? 'border-white/10' : 
+                              item.rarity === Rarity.UNCOMMON ? 'border-green-500/40 bg-green-500/5' :
+                              item.rarity === Rarity.RARE ? 'border-blue-500/40 bg-blue-500/5' :
+                              item.rarity === Rarity.EPIC ? 'border-purple-500/50 bg-purple-500/10 shadow-[inset_0_0_10px_rgba(168,85,247,0.2)]' :
+                              'border-orange-500/60 bg-orange-500/15 shadow-[inset_0_0_15px_rgba(245,158,11,0.3)]'
+                            }`}
+                        >
+                             {(item.rarity === Rarity.EPIC || item.rarity === Rarity.LEGENDARY) && (
+                                <div className={`absolute inset-0 opacity-10 ${item.rarity === Rarity.EPIC ? 'bg-purple-500' : 'bg-orange-500'} blur-xl`}></div>
+                             )}
+                             <div className={`text-xl drop-shadow-lg z-10 ${(COLORS as any)[item.rarity]} group-hover:scale-125 transition-transform duration-300`}>
                                 {item.bonus.stat === 'attack' ? '⚔️' : item.bonus.stat === 'defense' ? '🛡️' : '🧪'}
                              </div>
                         </div>
@@ -609,7 +660,7 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex-1 flex flex-col min-h-0">
-          <Visualizer state={gameState} />
+          <Visualizer state={gameState} enemyActionUsed={enemyAbilityDisplay} />
           <NarrativePanel logs={gameState.narrativeLog} isThinking={isThinking} onNarrativeComplete={handleNarrativeComplete} />
           
           <div className="p-4 bg-neutral-900 border-t-4 border-black">
