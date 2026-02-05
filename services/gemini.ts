@@ -99,6 +99,35 @@ const updateGameStateTool = {
           attack: { type: Type.NUMBER },
           defense: { type: Type.NUMBER }
         }
+      },
+      newStatusEffects: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            target: { type: Type.STRING, enum: ['player', 'enemy'] },
+            effect: {
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.STRING },
+                name: { type: Type.STRING },
+                type: { type: Type.STRING, enum: ['buff', 'debuff'] },
+                description: { type: Type.STRING },
+                icon: { type: Type.STRING },
+                duration: { type: Type.NUMBER },
+                modifiers: {
+                  type: Type.OBJECT,
+                  properties: {
+                    attack: { type: Type.NUMBER },
+                    defense: { type: Type.NUMBER },
+                    healthPerTurn: { type: Type.NUMBER }
+                  }
+                }
+              },
+              required: ['id', 'name', 'type', 'icon', 'duration']
+            }
+          }
+        }
       }
     },
     required: ["narrative"]
@@ -115,7 +144,8 @@ export async function processPlayerAction(
     Narrative Tone: ${state.tone}
     
     Current Vitals:
-    - Player: ${state.player.health}/${state.player.maxHealth} HP, ${state.player.gold} Gold.
+    - Player: ${state.player.health}/${state.player.maxHealth} HP. 
+    - Active Effects: ${state.player.statusEffects.map(e => `${e.name} (${e.duration} turns)`).join(', ') || 'None'}
     - Enemy: ${state.currentEnemy ? `${state.currentEnemy.name} (${state.currentEnemy.health}/${state.currentEnemy.maxHealth} HP)` : "None"}
     - Active Quests: ${state.activeQuests.map(q => q.description).join('; ')}
     
@@ -124,12 +154,15 @@ export async function processPlayerAction(
     Rules for the Dungeon Master:
     1. Narrative: Keep it to 2-3 sentences. Focus on sensory details (sounds of the ${state.currentBiome}).
     2. Tone: Adhere strictly to the chosen tone (${state.tone}). 
-       - Classic: Balanced fantasy.
-       - Grimdark: Visceral, dark, bloody, and high stakes.
-       - Heroic: Grandiose, legendary, and inspiring.
-    3. Combat: If attacking, determine if it was a critical strike. If the player is low HP, increase the tension.
-    4. State Updates: Always call updateGameState if anything changes (health, gold, enemy health, XP).
-    5. Progression: Occasionally drop items or change biomes when the player explores.
+    3. State Updates: Always call updateGameState if anything changes.
+    4. Status Effects: You can apply temporary buffs or debuffs. 
+       Examples: 
+       - 'Bleeding' (debuff, healthPerTurn: -10, icon: '🩸')
+       - 'Inspired' (buff, attack: +5, icon: '🌟')
+       - 'Weakened' (debuff, attack: -5, icon: '🥀')
+       - 'Burning' (debuff, healthPerTurn: -5, icon: '🔥')
+       Durations should usually be 2-4 turns.
+    5. Combat: Combat triggers should be visceral. Critical strikes are encouraged for high level players or heroic actions.
   `;
 
   try {
