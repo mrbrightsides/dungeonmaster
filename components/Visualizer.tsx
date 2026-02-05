@@ -14,9 +14,10 @@ interface DamagePop {
 
 interface VisualizerProps {
   state: GameState;
+  enemyActionUsed?: string | null;
 }
 
-const Visualizer: React.FC<VisualizerProps> = ({ state }) => {
+const Visualizer: React.FC<VisualizerProps> = ({ state, enemyActionUsed }) => {
   const theme = BIOME_THEMES[state.currentBiome] || BIOME_THEMES.Forest;
   const [enemyAnimClass, setEnemyAnimClass] = useState('');
   const [containerAnimClass, setContainerAnimClass] = useState('');
@@ -147,6 +148,15 @@ const Visualizer: React.FC<VisualizerProps> = ({ state }) => {
           -{pop.value}
         </div>
       ))}
+
+      {enemyActionUsed && (
+          <div className="absolute left-1/2 top-12 -translate-x-1/2 z-[60] flex flex-col items-center animate-in zoom-in-50 fade-in duration-500">
+              <div className="text-[10px] text-red-500 cinzel tracking-[0.3em] font-bold uppercase mb-1 drop-shadow-lg">Enemy Strategic Action</div>
+              <div className="px-8 py-3 bg-red-600 text-white font-bold cinzel text-2xl tracking-widest shadow-[0_0_40px_rgba(220,38,38,0.5)] border-2 border-red-400 transform -skew-x-12">
+                  {enemyActionUsed.toUpperCase()}
+              </div>
+          </div>
+      )}
 
       <svg className="absolute inset-0 w-full h-full opacity-30" viewBox="0 0 100 100" preserveAspectRatio="none">
         {state.currentBiome === BiomeType.FOREST && <path d="M0 100 L15 40 L30 100 L45 30 L60 100 L75 50 L100 100 Z" fill="#064e3b" />}
