@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { GameState, ClassType, BiomeType, ToneType, AIResponse, Achievement } from './types';
+import { GameState, ClassType, BiomeType, ToneType, AIResponse, Achievement, StatusEffect } from './types';
 import { processPlayerAction, playNarrativeAudio } from './services/gemini';
 import Visualizer from './components/Visualizer';
 import NarrativePanel from './components/NarrativePanel';
@@ -41,7 +41,8 @@ const initialState: GameState = {
     gold: 50,
     attack: 10,
     defense: 5,
-    inventory: []
+    inventory: [],
+    statusEffects: []
   },
   currentEnemy: null,
   currentBiome: BiomeType.FOREST,
@@ -118,12 +119,44 @@ const App: React.FC = () => {
       SoundManager.play('click');
     }
 
-    setGameState(prev => ({
-        ...prev,
-        turn: prev.turn + 1,
-        narrativeLog: [...prev.narrativeLog, `> ${action}`],
-        stats: { ...prev.stats, stepsTaken: prev.stats.stepsTaken + 1 }
-    }));
+    // Process current status effects (tick down)
+    setGameState(prev => {
+        const tickEffects = (effects: StatusEffect[]) => 
+            effects.map(e => ({ ...e, duration: e.duration - 1 })).filter(e => e.duration > 0);
+        
+        const applyEffectDamage = (effects: StatusEffect[], currentHp: number, maxHp: number) => {
+            let hpDelta = 0;
+            effects.forEach(e => {
+                if (e.modifiers?.healthPerTurn) hpDelta += e.modifiers.healthPerTurn;
+            });
+            return Math.min(maxHp, Math.max(0, currentHp + hpDelta));
+        };
+
+        const newPlayerHp = applyEffectDamage(prev.player.statusEffects, prev.player.health, prev.player.maxHealth);
+        const newPlayerEffects = tickEffects(prev.player.statusEffects);
+        
+        let newEnemy = prev.currentEnemy;
+        if (newEnemy) {
+            newEnemy = {
+                ...newEnemy,
+                health: applyEffectDamage(newEnemy.statusEffects || [], newEnemy.health, newEnemy.maxHealth),
+                statusEffects: tickEffects(newEnemy.statusEffects || [])
+            };
+        }
+
+        return {
+            ...prev,
+            turn: prev.turn + 1,
+            narrativeLog: [...prev.narrativeLog, `> ${action}`],
+            stats: { ...prev.stats, stepsTaken: prev.stats.stepsTaken + 1 },
+            player: {
+                ...prev.player,
+                health: newPlayerHp,
+                statusEffects: newPlayerEffects
+            },
+            currentEnemy: newEnemy
+        };
+    });
 
     const response: AIResponse = await processPlayerAction(action, gameState);
     
@@ -145,6 +178,20 @@ const App: React.FC = () => {
         };
       }
 
+      if (response.newStatusEffects) {
+          response.newStatusEffects.forEach(({ target, effect }) => {
+              if (target === 'player') {
+                  newState.player.statusEffects = [...newState.player.statusEffects, effect];
+                  addToast(`${effect.type === 'buff' ? '✨' : '💀'} ${effect.name} applied!`);
+                  SoundManager.play(effect.type === 'buff' ? 'quest' : 'hurt');
+              } else if (target === 'enemy' && newState.currentEnemy) {
+                  newState.currentEnemy.statusEffects = [...(newState.currentEnemy.statusEffects || []), effect];
+                  addToast(`${effect.type === 'buff' ? '✨' : '💀'} Enemy ${effect.name} applied!`);
+                  SoundManager.play('enemy_hurt');
+              }
+          });
+      }
+
       if (newState.stats.goldCollected >= 250 && !newState.achievements.find(a => a.id === 'hoarder')) {
         const ach = ACHIEVEMENTS.find(a => a.id === 'hoarder')!;
         newState.achievements.push({ ...ach, unlockedAt: Date.now() });
@@ -163,7 +210,7 @@ const App: React.FC = () => {
       }
 
       if (response.enemyToSpawn) {
-        newState.currentEnemy = response.enemyToSpawn;
+        newState.currentEnemy = { ...response.enemyToSpawn, statusEffects: [] };
       }
 
       if (newState.currentEnemy && newState.currentEnemy.health <= 0) {
@@ -271,6 +318,15 @@ const App: React.FC = () => {
         turn: 1
     });
     setCurrentView('play');
+  };
+
+  // Helper to calculate temporary stats from buffs
+  const getModdedStat = (base: number, effects: StatusEffect[], stat: 'attack' | 'defense') => {
+      let mod = 0;
+      effects.forEach(e => {
+          if (e.modifiers?.[stat]) mod += e.modifiers[stat]!;
+      });
+      return base + mod;
   };
 
   if (currentView === 'landing') {
@@ -429,6 +485,15 @@ const App: React.FC = () => {
                 <Icons.ClassIcon className={gameState.player.class} />
                 <span className="text-xs text-orange-300 font-bold uppercase tracking-[0.1em]">{gameState.player.class}</span>
              </div>
+             {/* Player Status Effects in HUD */}
+             <div className="flex gap-1 mt-1">
+                 {gameState.player.statusEffects.map(e => (
+                     <div key={e.id} title={`${e.name}: ${e.description} (${e.duration}t)`} className={`text-xs px-1 rounded flex items-center gap-0.5 ${e.type === 'buff' ? 'bg-blue-900/40 text-blue-300' : 'bg-red-900/40 text-red-300'} border border-white/5`}>
+                         <span>{e.icon}</span>
+                         <span className="text-[8px] font-bold">{e.duration}</span>
+                     </div>
+                 ))}
+             </div>
         </div>
 
         <div className="flex items-center gap-4">
@@ -526,8 +591,18 @@ const App: React.FC = () => {
                 <div className="p-3 bg-orange-900/10 border border-orange-900/30 rounded shadow-[0_0_15px_rgba(245,158,11,0.05)]">
                     <div className="text-[10px] text-orange-400 cinzel mb-1">Combat Potency</div>
                     <div className="flex justify-between text-xs font-bold text-white">
-                        <span className="flex items-center gap-1"><Icons.Sword /> {gameState.player.attack}</span>
-                        <span className="flex items-center gap-1"><Icons.Shield /> {gameState.player.defense}</span>
+                        <span className="flex items-center gap-1">
+                            <Icons.Sword /> 
+                            <span className={gameState.player.statusEffects.some(e => e.modifiers?.attack) ? 'text-blue-400' : ''}>
+                                {getModdedStat(gameState.player.attack, gameState.player.statusEffects, 'attack')}
+                            </span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                            <Icons.Shield /> 
+                            <span className={gameState.player.statusEffects.some(e => e.modifiers?.defense) ? 'text-blue-400' : ''}>
+                                {getModdedStat(gameState.player.defense, gameState.player.statusEffects, 'defense')}
+                            </span>
+                        </span>
                     </div>
                 </div>
             </section>
