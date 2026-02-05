@@ -2,6 +2,7 @@
 import React, { useMemo, useEffect, useRef, useState } from 'react';
 import { GameState, BiomeType, DamageType } from '../types';
 import { BIOME_THEMES, Icons } from '../constants';
+import SoundManager from '../services/sounds';
 
 interface DamagePop {
   id: number;
@@ -43,6 +44,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ state }) => {
         const damage = prevEnemyHealth.current - state.currentEnemy.health;
         addDamagePop(damage, false);
         setEnemyAnimClass('animate-enemy-hurt');
+        SoundManager.play('enemy_hurt');
         setTimeout(() => setEnemyAnimClass(''), 500);
       }
       prevEnemyHealth.current = state.currentEnemy.health;
@@ -59,6 +61,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ state }) => {
       setContainerAnimClass('animate-screen-shake');
       setHitRotation(Math.random() * 360);
       setShowHitEffect(true);
+      
+      SoundManager.play('hurt');
       
       setTimeout(() => {
         setEnemyAnimClass('');
