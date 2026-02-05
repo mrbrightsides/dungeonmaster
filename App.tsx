@@ -72,11 +72,9 @@ const App: React.FC = () => {
   const [hasSave, setHasSave] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
 
-  // Fix: Add missing state for setup view selections
   const [selectedBiome, setSelectedBiome] = useState<BiomeType>(BiomeType.FOREST);
   const [selectedTone, setSelectedTone] = useState<ToneType>(ToneType.CLASSIC);
 
-  // Initialize sounds on mount
   useEffect(() => {
     SoundManager.init();
     const saved = localStorage.getItem(SAVE_KEY);
@@ -85,7 +83,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Auto-save whenever gameState changes
   useEffect(() => {
     if (currentView === 'play' || gameState.turn > 0 || gameState.isGameOver) {
       localStorage.setItem(SAVE_KEY, JSON.stringify(gameState));
@@ -112,7 +109,6 @@ const App: React.FC = () => {
     setActionInput('');
     setIsThinking(true);
     
-    // Play sound based on action keywords
     const lowerAction = action.toLowerCase();
     if (lowerAction.includes('attack') || lowerAction.includes('strike') || lowerAction.includes('hit')) {
       SoundManager.play('attack');
@@ -149,7 +145,6 @@ const App: React.FC = () => {
         };
       }
 
-      // Achievement Checks
       if (newState.stats.goldCollected >= 250 && !newState.achievements.find(a => a.id === 'hoarder')) {
         const ach = ACHIEVEMENTS.find(a => a.id === 'hoarder')!;
         newState.achievements.push({ ...ach, unlockedAt: Date.now() });
@@ -234,20 +229,20 @@ const App: React.FC = () => {
   };
 
   const handleContinue = () => {
+    SoundManager.play('click');
     const saved = localStorage.getItem(SAVE_KEY);
     if (saved) {
       setGameState(JSON.parse(saved));
       setCurrentView('play');
-      SoundManager.play('click');
     }
   };
 
   const handleReset = () => {
+    SoundManager.play('click');
     localStorage.removeItem(SAVE_KEY);
     setHasSave(false);
     setGameState(initialState);
     setCurrentView('landing');
-    SoundManager.play('click');
   };
 
   const toggleMute = () => {
@@ -256,12 +251,14 @@ const App: React.FC = () => {
   };
 
   const startGameWithClass = (type: ClassType) => {
+    SoundManager.play('click');
+    SoundManager.play('quest');
+    
     const basePlayer = { ...initialState.player, class: type };
     if (type === ClassType.WARRIOR) { basePlayer.maxHealth = 120; basePlayer.health = 120; basePlayer.attack = 12; }
     if (type === ClassType.ROGUE) { basePlayer.maxHealth = 90; basePlayer.health = 90; basePlayer.attack = 15; }
     if (type === ClassType.MAGE) { basePlayer.maxHealth = 70; basePlayer.health = 70; basePlayer.attack = 20; }
     
-    // Fix: Using selectedBiome from local state
     const settingLabel = SETTINGS.find(s => s.type === selectedBiome)?.label || 'Unknown';
     const initialNarrative = `You arrive at the ${settingLabel}. The air is thick with the scent of adventure and danger. Your path as a ${type} begins here.`;
 
@@ -274,7 +271,6 @@ const App: React.FC = () => {
         turn: 1
     });
     setCurrentView('play');
-    SoundManager.play('quest');
   };
 
   if (currentView === 'landing') {
@@ -298,7 +294,6 @@ const App: React.FC = () => {
         </div>
 
         <div className="w-full max-w-5xl space-y-12 pb-12 relative z-10">
-            {/* Step 1: Setting */}
             <section className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <h2 className="cinzel text-xl text-orange-500 mb-6 border-b border-orange-900/30 pb-2 flex items-center gap-4">
                     <span className="bg-gradient-to-br from-orange-500 to-amber-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] shadow-[0_0_10px_rgba(245,158,11,0.5)] font-bold">1</span>
@@ -308,8 +303,7 @@ const App: React.FC = () => {
                     {SETTINGS.map((s) => (
                         <button
                             key={s.type}
-                            // Fix: Using setSelectedBiome and selectedBiome from local state
-                            onClick={() => { setSelectedBiome(s.type); SoundManager.play('click'); }}
+                            onClick={() => { SoundManager.play('click'); setSelectedBiome(s.type); }}
                             className={`p-4 rounded-xl border transition-all text-center flex flex-col items-center gap-2 group ${
                                 selectedBiome === s.type 
                                 ? 'bg-orange-600/20 border-orange-500 shadow-[0_0_20px_rgba(245,158,11,0.25)] scale-105' 
@@ -323,7 +317,6 @@ const App: React.FC = () => {
                 </div>
             </section>
 
-            {/* Step 2: Tone */}
             <section className="animate-in fade-in slide-in-from-bottom-4 duration-700">
                 <h2 className="cinzel text-xl text-orange-500 mb-6 border-b border-orange-900/30 pb-2 flex items-center gap-4">
                     <span className="bg-gradient-to-br from-orange-500 to-amber-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] shadow-[0_0_10px_rgba(245,158,11,0.5)] font-bold">2</span>
@@ -333,8 +326,7 @@ const App: React.FC = () => {
                     {TONES.map((t) => (
                         <button
                             key={t.type}
-                            // Fix: Using setSelectedTone and selectedTone from local state
-                            onClick={() => { setSelectedTone(t.type); SoundManager.play('click'); }}
+                            onClick={() => { SoundManager.play('click'); setSelectedTone(t.type); }}
                             className={`p-6 rounded-xl border transition-all text-left group ${
                                 selectedTone === t.type 
                                 ? 'bg-orange-600/20 border-orange-500 shadow-[0_0_20px_rgba(245,158,11,0.25)]' 
@@ -348,7 +340,6 @@ const App: React.FC = () => {
                 </div>
             </section>
 
-            {/* Step 3: Class */}
             <section className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
                 <h2 className="cinzel text-xl text-orange-500 mb-6 border-b border-orange-900/30 pb-2 flex items-center gap-4">
                     <span className="bg-gradient-to-br from-orange-500 to-amber-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] shadow-[0_0_10px_rgba(245,158,11,0.5)] font-bold">3</span>
@@ -397,7 +388,6 @@ const App: React.FC = () => {
   return (
     <div className="h-screen flex flex-col bg-black text-white font-sans selection:bg-orange-500/30 overflow-hidden">
       
-      {/* Toast System */}
       <div className="fixed top-20 right-4 z-[100] flex flex-col gap-2">
         {toasts.map((toast, i) => (
             <div key={i} className="bg-neutral-900 border-l-4 border-orange-500 p-4 shadow-2xl animate-in slide-in-from-right duration-300 cinzel text-xs tracking-widest border border-white/5">
@@ -406,7 +396,6 @@ const App: React.FC = () => {
         ))}
       </div>
 
-      {/* Top HUD */}
       <div className="bg-neutral-900 p-3 border-b-4 border-black flex items-center justify-between z-50">
         <div className="flex items-center gap-8">
           <div className="flex flex-col">
@@ -515,7 +504,6 @@ const App: React.FC = () => {
                 </div>
             </section>
 
-            {/* New Statistics Section */}
             <section>
                 <h4 className="cinzel text-[10px] text-neutral-600 uppercase tracking-widest mb-4 border-b border-white/5 pb-2">Saga Statistics</h4>
                 <div className="space-y-3">
