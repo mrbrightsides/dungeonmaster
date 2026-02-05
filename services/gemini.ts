@@ -40,6 +40,7 @@ const updateGameStateTool = {
     description: "Update the game state based on player action and narrative outcomes.",
     properties: {
       narrative: { type: Type.STRING, description: "The storytelling text describing the outcome." },
+      enemyActionUsed: { type: Type.STRING, description: "Optional name of a special ability the enemy just used." },
       enemyToSpawn: {
         type: Type.OBJECT,
         description: "An optional enemy to spawn.",
@@ -49,7 +50,17 @@ const updateGameStateTool = {
           health: { type: Type.NUMBER },
           maxHealth: { type: Type.NUMBER },
           attack: { type: Type.NUMBER },
-          resistances: { type: Type.OBJECT, additionalProperties: { type: Type.NUMBER } }
+          resistances: { type: Type.OBJECT, additionalProperties: { type: Type.NUMBER } },
+          abilities: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                name: { type: Type.STRING },
+                description: { type: Type.STRING }
+              }
+            }
+          }
         }
       },
       biomeChange: {
@@ -147,22 +158,17 @@ export async function processPlayerAction(
     - Player: ${state.player.health}/${state.player.maxHealth} HP. 
     - Active Effects: ${state.player.statusEffects.map(e => `${e.name} (${e.duration} turns)`).join(', ') || 'None'}
     - Enemy: ${state.currentEnemy ? `${state.currentEnemy.name} (${state.currentEnemy.health}/${state.currentEnemy.maxHealth} HP)` : "None"}
+    - Enemy Abilities: ${state.currentEnemy?.abilities?.map(a => a.name).join(', ') || 'Standard Attacks Only'}
     - Active Quests: ${state.activeQuests.map(q => q.description).join('; ')}
     
     The player attempts: "${action}".
     
-    Rules for the Dungeon Master:
-    1. Narrative: Keep it to 2-3 sentences. Focus on sensory details (sounds of the ${state.currentBiome}).
-    2. Tone: Adhere strictly to the chosen tone (${state.tone}). 
-    3. State Updates: Always call updateGameState if anything changes.
-    4. Status Effects: You can apply temporary buffs or debuffs. 
-       Examples: 
-       - 'Bleeding' (debuff, healthPerTurn: -10, icon: '🩸')
-       - 'Inspired' (buff, attack: +5, icon: '🌟')
-       - 'Weakened' (debuff, attack: -5, icon: '🥀')
-       - 'Burning' (debuff, healthPerTurn: -5, icon: '🔥')
-       Durations should usually be 2-4 turns.
-    5. Combat: Combat triggers should be visceral. Critical strikes are encouraged for high level players or heroic actions.
+    STRATEGIC COMBAT RULES:
+    1. REACTIVE AI: Enemies are smart. If a player is low health, they use high-damage finishers. If a player has high defense, they use armor-piercing status effects or magic.
+    2. SPECIAL MOVES: When spawning an enemy, give them 2-3 unique abilities. During combat, use 'enemyActionUsed' to specify if they used one.
+    3. COUNTER-PLAY: If a player is a Mage, enemies might use 'Magic Resist' buffs. If a Rogue is dodging, they might use 'Wide Sweeps' (can't miss).
+    4. NARRATIVE: Focus on the visceral impact of the combat. Adhere to the ${state.tone} tone.
+    5. STATUS EFFECTS: Use them strategically. Bleeding for sustain damage, Stunned to skip player turns (by reducing their effectiveness in narrative), or Weakened to lower attack.
   `;
 
   try {
@@ -171,7 +177,7 @@ export async function processPlayerAction(
       contents: prompt,
       config: {
         tools: [{ functionDeclarations: [updateGameStateTool] }],
-        thinkingConfig: { thinkingBudget: 1000 }
+        thinkingConfig: { thinkingBudget: 1500 }
       }
     });
 
@@ -181,13 +187,13 @@ export async function processPlayerAction(
     }
 
     return {
-      narrative: response.text || "The winds shift, but the path forward remains unchanged.",
+      narrative: response.text || "The enemy watches you warily, waiting for an opening.",
       statChanges: {}
     };
   } catch (error) {
     console.error("AI Error:", error);
     return {
-      narrative: "A thick mist descends, obscuring your vision and confusing your senses.",
+      narrative: "A sudden chill fills the room as the enemy's presence looms darker.",
       statChanges: {}
     };
   }
