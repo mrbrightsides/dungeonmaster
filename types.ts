@@ -34,6 +34,20 @@ export enum Rarity {
   LEGENDARY = 'Legendary'
 }
 
+export interface StatusEffect {
+  id: string;
+  name: string;
+  type: 'buff' | 'debuff';
+  description: string;
+  icon: string;
+  duration: number; // in turns
+  modifiers?: {
+    attack?: number;
+    defense?: number;
+    healthPerTurn?: number;
+  };
+}
+
 export interface Item {
   id: string;
   name: string;
@@ -51,6 +65,7 @@ export interface Enemy {
   maxHealth: number;
   attack: number;
   resistances: Partial<Record<DamageType, number>>;
+  statusEffects?: StatusEffect[];
 }
 
 export interface Quest {
@@ -81,6 +96,7 @@ export interface GameState {
     attack: number;
     defense: number;
     inventory: Item[];
+    statusEffects: StatusEffect[];
   };
   currentEnemy: Enemy | null;
   currentBiome: BiomeType;
@@ -110,4 +126,8 @@ export interface AIResponse {
   };
   itemDrop?: Item;
   statChanges?: Partial<GameState['player']>;
+  newStatusEffects?: {
+    target: 'player' | 'enemy';
+    effect: StatusEffect;
+  }[];
 }
