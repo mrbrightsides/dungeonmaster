@@ -1,6 +1,6 @@
 
 import React, { useMemo, useEffect, useRef, useState } from 'react';
-import { GameState, BiomeType } from '../types';
+import { GameState, BiomeType, DamageType } from '../types';
 import { BIOME_THEMES, Icons } from '../constants';
 
 interface DamagePop {
@@ -80,6 +80,23 @@ const Visualizer: React.FC<VisualizerProps> = ({ state }) => {
       opacity: Math.random() * 0.5 + 0.2
     }));
   }, [state.currentBiome]);
+
+  const renderResistances = () => {
+    if (!state.currentEnemy?.resistances) return null;
+    const res = state.currentEnemy.resistances;
+    const entries = Object.entries(res) as [DamageType, number][];
+    if (entries.length === 0) return null;
+
+    return (
+      <div className="flex flex-wrap gap-1 justify-center mt-2 max-w-[150px]">
+        {entries.map(([type, val]) => (
+          <div key={type} className="text-[7px] font-bold uppercase tracking-tighter bg-red-950/80 text-red-300 border border-red-900/50 px-1 rounded">
+            {type}: {Math.round(val * 100)}%
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className={`relative w-full h-64 md:h-96 rounded-t-lg overflow-hidden ${theme.bg} transition-all duration-1000 border-b-4 border-black group ${containerAnimClass}`}>
@@ -163,6 +180,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ state }) => {
                     style={{ width: `${(state.currentEnemy.health / state.currentEnemy.maxHealth) * 100}%` }}
                 />
            </div>
+           {/* New Resistances Display */}
+           {renderResistances()}
         </div>
       )}
 
