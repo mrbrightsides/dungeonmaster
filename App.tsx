@@ -428,6 +428,25 @@ const App: React.FC = () => {
                 </div>
             </section>
 
+            {/* New Statistics Section */}
+            <section>
+                <h4 className="cinzel text-[10px] text-neutral-600 uppercase tracking-widest mb-4 border-b border-white/5 pb-2">Saga Statistics</h4>
+                <div className="space-y-3">
+                    <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
+                        <span className="text-neutral-500 flex items-center gap-2">💀 Enemies Defeated</span>
+                        <span className="text-white">{gameState.stats.enemiesDefeated}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
+                        <span className="text-neutral-500 flex items-center gap-2">💰 Total Gold Found</span>
+                        <span className="text-yellow-500">{gameState.stats.goldCollected}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
+                        <span className="text-neutral-500 flex items-center gap-2">👣 Distance Traveled</span>
+                        <span className="text-blue-400">{gameState.stats.stepsTaken}</span>
+                    </div>
+                </div>
+            </section>
+
             <section className="mt-auto">
                 <div className="p-3 bg-orange-900/10 border border-orange-900/30 rounded shadow-[0_0_15px_rgba(245,158,11,0.05)]">
                     <div className="text-[10px] text-orange-400 cinzel mb-1">Combat Potency</div>
@@ -464,11 +483,33 @@ const App: React.FC = () => {
                     </button>
                 </form>
             ) : (
-                <div className="flex flex-col items-center gap-4 py-2">
-                    <div className="cinzel text-red-500 text-xl animate-pulse tracking-[0.2em] font-bold">YOUR STORY HAS ENDED</div>
+                <div className="flex flex-col items-center gap-6 py-6 animate-in zoom-in duration-500">
+                    <div className="text-center">
+                        <div className="cinzel text-red-500 text-3xl animate-pulse tracking-[0.3em] font-bold mb-2">YOUR STORY HAS ENDED</div>
+                        <p className="text-neutral-500 text-xs cinzel tracking-widest">Saga Summary</p>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-8 w-full max-w-lg bg-white/5 p-6 rounded-lg border border-white/10">
+                        <div className="text-center">
+                            <div className="text-2xl mb-1">💀</div>
+                            <div className="text-xl font-bold cinzel">{gameState.stats.enemiesDefeated}</div>
+                            <div className="text-[8px] text-neutral-500 uppercase tracking-widest font-bold">Enemies Slain</div>
+                        </div>
+                        <div className="text-center">
+                            <div className="text-2xl mb-1">💰</div>
+                            <div className="text-xl font-bold cinzel">{gameState.stats.goldCollected}</div>
+                            <div className="text-[8px] text-neutral-500 uppercase tracking-widest font-bold">Gold Amassed</div>
+                        </div>
+                        <div className="text-center">
+                            <div className="text-2xl mb-1">🗺️</div>
+                            <div className="text-xl font-bold cinzel">{gameState.stats.stepsTaken}</div>
+                            <div className="text-[8px] text-neutral-500 uppercase tracking-widest font-bold">Steps Taken</div>
+                        </div>
+                    </div>
+
                     <button 
                         onClick={() => { setGameState(initialState); setCurrentView('landing'); }}
-                        className="bg-white text-black px-12 py-3 font-bold cinzel hover:bg-neutral-200 transition-all text-xs tracking-widest active:scale-95"
+                        className="bg-white text-black px-12 py-3 font-bold cinzel hover:bg-neutral-200 transition-all text-xs tracking-widest active:scale-95 shadow-[0_0_30px_rgba(255,255,255,0.2)]"
                     >
                         Reincarnate
                     </button>
