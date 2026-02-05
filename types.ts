@@ -48,6 +48,12 @@ export interface StatusEffect {
   };
 }
 
+export interface EnemyAbility {
+  name: string;
+  description: string;
+  cooldown?: number;
+}
+
 export interface Item {
   id: string;
   name: string;
@@ -66,6 +72,7 @@ export interface Enemy {
   attack: number;
   resistances: Partial<Record<DamageType, number>>;
   statusEffects?: StatusEffect[];
+  abilities?: EnemyAbility[];
 }
 
 export interface Quest {
@@ -130,4 +137,5 @@ export interface AIResponse {
     target: 'player' | 'enemy';
     effect: StatusEffect;
   }[];
+  enemyActionUsed?: string; // Name of the special ability used by enemy
 }
