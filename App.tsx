@@ -6,6 +6,7 @@ import Visualizer from './components/Visualizer';
 import NarrativePanel from './components/NarrativePanel';
 import LandingPage from './components/LandingPage';
 import { Icons, COLORS } from './constants';
+import SoundManager from './services/sounds';
 
 const SAVE_KEY = 'ai_dungeon_master_save';
 
@@ -69,13 +70,15 @@ const App: React.FC = () => {
   const [isThinking, setIsThinking] = useState(false);
   const [toasts, setToasts] = useState<string[]>([]);
   const [hasSave, setHasSave] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
 
-  // Start Screen Selection State
+  // Fix: Add missing state for setup view selections
   const [selectedBiome, setSelectedBiome] = useState<BiomeType>(BiomeType.FOREST);
   const [selectedTone, setSelectedTone] = useState<ToneType>(ToneType.CLASSIC);
 
-  // Check for existing save on mount
+  // Initialize sounds on mount
   useEffect(() => {
+    SoundManager.init();
     const saved = localStorage.getItem(SAVE_KEY);
     if (saved) {
       setHasSave(true);
@@ -84,13 +87,15 @@ const App: React.FC = () => {
 
   // Auto-save whenever gameState changes
   useEffect(() => {
-    // We only save if the game is active or game over, 
-    // but not if it's the bare initial state at the start screen
     if (currentView === 'play' || gameState.turn > 0 || gameState.isGameOver) {
       localStorage.setItem(SAVE_KEY, JSON.stringify(gameState));
       setHasSave(true);
     }
-  }, [gameState, currentView]);
+    
+    if (gameState.isGameOver && gameState.turn > 0) {
+      SoundManager.play('death');
+    }
+  }, [gameState.turn, gameState.isGameOver, currentView]);
 
   const addToast = (msg: string) => {
     setToasts(prev => [...prev, msg]);
@@ -106,6 +111,16 @@ const App: React.FC = () => {
     const action = actionInput;
     setActionInput('');
     setIsThinking(true);
+    
+    // Play sound based on action keywords
+    const lowerAction = action.toLowerCase();
+    if (lowerAction.includes('attack') || lowerAction.includes('strike') || lowerAction.includes('hit')) {
+      SoundManager.play('attack');
+    } else if (lowerAction.includes('cast') || lowerAction.includes('magic') || lowerAction.includes('spell')) {
+      SoundManager.play('spell');
+    } else {
+      SoundManager.play('click');
+    }
 
     setGameState(prev => ({
         ...prev,
@@ -139,6 +154,7 @@ const App: React.FC = () => {
         const ach = ACHIEVEMENTS.find(a => a.id === 'hoarder')!;
         newState.achievements.push({ ...ach, unlockedAt: Date.now() });
         addToast(`🏆 Achievement Unlocked: ${ach.title}`);
+        SoundManager.play('level_up');
       }
 
       if (newState.player.xp >= newState.player.level * 100) {
@@ -148,6 +164,7 @@ const App: React.FC = () => {
         newState.player.health = newState.player.maxHealth;
         newState.narrativeLog.push("✨ LEVEL UP! You feel a surge of power coursing through your veins.");
         addToast("✨ Level Up!");
+        SoundManager.play('level_up');
       }
 
       if (response.enemyToSpawn) {
@@ -170,6 +187,7 @@ const App: React.FC = () => {
 
       if (response.biomeChange && response.biomeChange !== newState.currentBiome) {
         newState.currentBiome = response.biomeChange;
+        SoundManager.play('quest');
         if (!newState.achievements.find(a => a.id === 'explorer')) {
             const ach = ACHIEVEMENTS.find(a => a.id === 'explorer')!;
             newState.achievements.push({ ...ach, unlockedAt: Date.now() });
@@ -182,6 +200,7 @@ const App: React.FC = () => {
         if (isNew && newQuest) {
            newState.activeQuests = [...newState.activeQuests, newQuest].slice(-3);
            addToast("📜 New Quest Added!");
+           SoundManager.play('quest');
         } else {
            newState.activeQuests = newState.activeQuests.map(q => 
              q.id === id ? { ...q, progress: Math.min(q.target, q.progress + progressDelta) } : q
@@ -193,6 +212,7 @@ const App: React.FC = () => {
         newState.player.inventory = [...newState.player.inventory, response.itemDrop];
         newState.narrativeLog.push(`🎁 Found: ${response.itemDrop.name} (${response.itemDrop.rarity})`);
         addToast(`🎁 Found ${response.itemDrop.name}`);
+        SoundManager.play('item');
       }
 
       if (newState.player.health <= 0) {
@@ -218,6 +238,7 @@ const App: React.FC = () => {
     if (saved) {
       setGameState(JSON.parse(saved));
       setCurrentView('play');
+      SoundManager.play('click');
     }
   };
 
@@ -226,6 +247,12 @@ const App: React.FC = () => {
     setHasSave(false);
     setGameState(initialState);
     setCurrentView('landing');
+    SoundManager.play('click');
+  };
+
+  const toggleMute = () => {
+    const newVal = SoundManager.toggleMute();
+    setIsMuted(newVal);
   };
 
   const startGameWithClass = (type: ClassType) => {
@@ -234,6 +261,7 @@ const App: React.FC = () => {
     if (type === ClassType.ROGUE) { basePlayer.maxHealth = 90; basePlayer.health = 90; basePlayer.attack = 15; }
     if (type === ClassType.MAGE) { basePlayer.maxHealth = 70; basePlayer.health = 70; basePlayer.attack = 20; }
     
+    // Fix: Using selectedBiome from local state
     const settingLabel = SETTINGS.find(s => s.type === selectedBiome)?.label || 'Unknown';
     const initialNarrative = `You arrive at the ${settingLabel}. The air is thick with the scent of adventure and danger. Your path as a ${type} begins here.`;
 
@@ -246,10 +274,11 @@ const App: React.FC = () => {
         turn: 1
     });
     setCurrentView('play');
+    SoundManager.play('quest');
   };
 
   if (currentView === 'landing') {
-    return <LandingPage onStart={() => setCurrentView('setup')} onContinue={handleContinue} hasSave={hasSave} />;
+    return <LandingPage onStart={() => { SoundManager.play('click'); setCurrentView('setup'); }} onContinue={handleContinue} hasSave={hasSave} />;
   }
 
   if (currentView === 'setup') {
@@ -279,10 +308,11 @@ const App: React.FC = () => {
                     {SETTINGS.map((s) => (
                         <button
                             key={s.type}
-                            onClick={() => setSelectedBiome(s.type)}
+                            // Fix: Using setSelectedBiome and selectedBiome from local state
+                            onClick={() => { setSelectedBiome(s.type); SoundManager.play('click'); }}
                             className={`p-4 rounded-xl border transition-all text-center flex flex-col items-center gap-2 group ${
                                 selectedBiome === s.type 
-                                ? 'bg-orange-600/20 border-orange-500 shadow-[0_0_20px_rgba(245,158,11,0.2)] scale-105' 
+                                ? 'bg-orange-600/20 border-orange-500 shadow-[0_0_20px_rgba(245,158,11,0.25)] scale-105' 
                                 : 'bg-neutral-900/40 border-neutral-800 hover:border-orange-900'
                             }`}
                         >
@@ -303,10 +333,11 @@ const App: React.FC = () => {
                     {TONES.map((t) => (
                         <button
                             key={t.type}
-                            onClick={() => setSelectedTone(t.type)}
+                            // Fix: Using setSelectedTone and selectedTone from local state
+                            onClick={() => { setSelectedTone(t.type); SoundManager.play('click'); }}
                             className={`p-6 rounded-xl border transition-all text-left group ${
                                 selectedTone === t.type 
-                                ? 'bg-orange-600/20 border-orange-500 shadow-[0_0_20px_rgba(245,158,11,0.2)]' 
+                                ? 'bg-orange-600/20 border-orange-500 shadow-[0_0_20px_rgba(245,158,11,0.25)]' 
                                 : 'bg-neutral-900/40 border-neutral-800 hover:border-orange-900'
                             }`}
                         >
@@ -354,7 +385,7 @@ const App: React.FC = () => {
         </div>
 
         <button 
-            onClick={() => setCurrentView('landing')}
+            onClick={() => { SoundManager.play('click'); setCurrentView('landing'); }}
             className="mt-12 text-neutral-600 hover:text-orange-500 text-[10px] uppercase tracking-[0.2em] cinzel transition-colors"
         >
             &larr; Return to Entrance
@@ -411,7 +442,7 @@ const App: React.FC = () => {
              </div>
         </div>
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4">
           <div className="flex flex-col items-end">
             <span className="text-[9px] text-neutral-500 uppercase font-bold tracking-[0.2em] mb-1">Treasury</span>
             <div className="flex items-center gap-2">
@@ -419,13 +450,27 @@ const App: React.FC = () => {
               <Icons.Gold />
             </div>
           </div>
-          <button 
-            onClick={handleReset} 
-            title="Reset Game"
-            className="p-2 text-neutral-600 hover:text-red-500 transition-colors bg-black/40 rounded border border-white/5"
-          >
-             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-          </button>
+          
+          <div className="flex items-center gap-1">
+            <button 
+              onClick={toggleMute}
+              title={isMuted ? "Unmute" : "Mute"}
+              className="p-2 text-neutral-600 hover:text-orange-500 transition-colors bg-black/40 rounded border border-white/5"
+            >
+              {isMuted ? (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5.586 15H4a1 1 0 01-1-1V10a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" /></svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1V10a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
+              )}
+            </button>
+            <button 
+              onClick={handleReset} 
+              title="Reset Game"
+              className="p-2 text-neutral-600 hover:text-red-500 transition-colors bg-black/40 rounded border border-white/5"
+            >
+               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+            </button>
+          </div>
         </div>
       </div>
 
