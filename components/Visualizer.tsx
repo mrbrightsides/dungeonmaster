@@ -1,6 +1,6 @@
 
 import React, { useMemo, useEffect, useRef, useState } from 'react';
-import { GameState, BiomeType, DamageType } from '../types';
+import { GameState, BiomeType, DamageType, StatusEffect } from '../types';
 import { BIOME_THEMES, Icons } from '../constants';
 import SoundManager from '../services/sounds';
 
@@ -38,7 +38,6 @@ const Visualizer: React.FC<VisualizerProps> = ({ state }) => {
   };
 
   useEffect(() => {
-    // Check if enemy took damage
     if (state.currentEnemy) {
       if (prevEnemyHealth.current !== undefined && state.currentEnemy.health < prevEnemyHealth.current) {
         const damage = prevEnemyHealth.current - state.currentEnemy.health;
@@ -52,7 +51,6 @@ const Visualizer: React.FC<VisualizerProps> = ({ state }) => {
       prevEnemyHealth.current = undefined;
     }
 
-    // Check if player took damage
     if (state.player.health < prevPlayerHealth.current) {
       const damage = prevPlayerHealth.current - state.player.health;
       addDamagePop(damage, true);
@@ -85,6 +83,18 @@ const Visualizer: React.FC<VisualizerProps> = ({ state }) => {
     }));
   }, [state.currentBiome]);
 
+  const renderStatusIcons = (effects: StatusEffect[]) => {
+      return (
+          <div className="flex gap-1 mb-2">
+              {effects.map(e => (
+                  <div key={e.id} className="animate-bounce-slow text-lg filter drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]">
+                      {e.icon}
+                  </div>
+              ))}
+          </div>
+      );
+  };
+
   const renderResistances = () => {
     if (!state.currentEnemy?.resistances) return null;
     const res = state.currentEnemy.resistances;
@@ -106,12 +116,10 @@ const Visualizer: React.FC<VisualizerProps> = ({ state }) => {
     <div className={`relative w-full h-64 md:h-96 rounded-t-lg overflow-hidden ${theme.bg} transition-all duration-1000 border-b-4 border-black group ${containerAnimClass}`}>
       <div className="scanlines"></div>
       
-      {/* Visual concussive/chromatic effect when hit */}
       <div className={`absolute inset-0 pointer-events-none transition-all duration-300 ${containerAnimClass ? 'opacity-100 backdrop-invert-[0.1] contrast-[1.4] brightness-[1.2] shadow-[inset_0_0_50px_rgba(245,158,11,0.4)]' : 'opacity-0'}`} />
       
       <div className={`absolute inset-0 bg-orange-600/10 pointer-events-none transition-opacity duration-300 ${containerAnimClass ? 'opacity-100' : 'opacity-0'}`} />
 
-      {/* Environmental Weather Overlay */}
       <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
         {particles.map((p) => (
           <div
@@ -130,7 +138,6 @@ const Visualizer: React.FC<VisualizerProps> = ({ state }) => {
         ))}
       </div>
 
-      {/* Floating Damage Numbers */}
       {damagePops.map((pop) => (
         <div
           key={pop.id}
@@ -149,6 +156,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ state }) => {
 
       {/* Player */}
       <div className="absolute left-1/4 bottom-10 transform -translate-x-1/2 flex flex-col items-center z-20">
+        {renderStatusIcons(state.player.statusEffects)}
         <div className="relative">
           <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-700 rounded-lg border-2 border-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.5)] animate-bounce flex items-center justify-center text-3xl">
             <Icons.ClassIcon className={state.player.class} />
@@ -157,9 +165,6 @@ const Visualizer: React.FC<VisualizerProps> = ({ state }) => {
             <div className="absolute inset-0 -m-8 z-30 pointer-events-none flex items-center justify-center" style={{ transform: `rotate(${hitRotation}deg)` }}>
               <svg className="w-24 h-24 text-red-500 animate-ping" viewBox="0 0 100 100">
                 <path d="M10 10 L90 90 M90 10 L10 90" stroke="currentColor" strokeWidth="12" strokeLinecap="round" />
-              </svg>
-              <svg className="absolute w-20 h-20 text-orange-500 animate-slash-bright" viewBox="0 0 100 100">
-                <path d="M20 20 L80 80 M80 20 L20 80" stroke="currentColor" strokeWidth="12" strokeLinecap="round" />
               </svg>
             </div>
           )}
@@ -172,6 +177,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ state }) => {
       {/* Enemy */}
       {state.currentEnemy && (
         <div className={`absolute right-1/4 bottom-10 transform translate-x-1/2 flex flex-col items-center z-20 transition-all duration-500 ${enemyAnimClass}`}>
+           {renderStatusIcons(state.currentEnemy.statusEffects || [])}
            <div className="w-20 h-20 bg-gradient-to-tr from-red-900 to-red-600 rounded-xl border-2 border-red-400 shadow-[0_0_30px_rgba(220,38,38,0.6)] flex items-center justify-center text-5xl animate-pulse">
                 <Icons.EnemyIcon type={state.currentEnemy.type} />
            </div>
@@ -184,7 +190,6 @@ const Visualizer: React.FC<VisualizerProps> = ({ state }) => {
                     style={{ width: `${(state.currentEnemy.health / state.currentEnemy.maxHealth) * 100}%` }}
                 />
            </div>
-           {/* New Resistances Display */}
            {renderResistances()}
         </div>
       )}
@@ -197,6 +202,14 @@ const Visualizer: React.FC<VisualizerProps> = ({ state }) => {
       </div>
 
       <style>{`
+        @keyframes bounce-slow {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+        .animate-bounce-slow {
+          animation: bounce-slow 2s infinite ease-in-out;
+        }
+
         @keyframes weather-float-leaves {
           0% { transform: translateY(-20px) translateX(0) rotate(0deg); opacity: 0; }
           10% { opacity: 0.6; }
