@@ -7,6 +7,8 @@ import NarrativePanel from './components/NarrativePanel';
 import LandingPage from './components/LandingPage';
 import { Icons, COLORS } from './constants';
 
+const SAVE_KEY = 'ai_dungeon_master_save';
+
 const ACHIEVEMENTS: Achievement[] = [
   { id: 'first_blood', title: 'First Blood', description: 'Defeat your first dungeon denizen.' },
   { id: 'hoarder', title: 'Hoarder', description: 'Collect over 250 gold.' },
@@ -66,10 +68,29 @@ const App: React.FC = () => {
   const [actionInput, setActionInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const [toasts, setToasts] = useState<string[]>([]);
+  const [hasSave, setHasSave] = useState(false);
 
   // Start Screen Selection State
   const [selectedBiome, setSelectedBiome] = useState<BiomeType>(BiomeType.FOREST);
   const [selectedTone, setSelectedTone] = useState<ToneType>(ToneType.CLASSIC);
+
+  // Check for existing save on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(SAVE_KEY);
+    if (saved) {
+      setHasSave(true);
+    }
+  }, []);
+
+  // Auto-save whenever gameState changes
+  useEffect(() => {
+    // We only save if the game is active or game over, 
+    // but not if it's the bare initial state at the start screen
+    if (currentView === 'play' || gameState.turn > 0 || gameState.isGameOver) {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(gameState));
+      setHasSave(true);
+    }
+  }, [gameState, currentView]);
 
   const addToast = (msg: string) => {
     setToasts(prev => [...prev, msg]);
@@ -88,6 +109,7 @@ const App: React.FC = () => {
 
     setGameState(prev => ({
         ...prev,
+        turn: prev.turn + 1,
         narrativeLog: [...prev.narrativeLog, `> ${action}`],
         stats: { ...prev.stats, stepsTaken: prev.stats.stepsTaken + 1 }
     }));
@@ -191,6 +213,21 @@ const App: React.FC = () => {
     }
   };
 
+  const handleContinue = () => {
+    const saved = localStorage.getItem(SAVE_KEY);
+    if (saved) {
+      setGameState(JSON.parse(saved));
+      setCurrentView('play');
+    }
+  };
+
+  const handleReset = () => {
+    localStorage.removeItem(SAVE_KEY);
+    setHasSave(false);
+    setGameState(initialState);
+    setCurrentView('landing');
+  };
+
   const startGameWithClass = (type: ClassType) => {
     const basePlayer = { ...initialState.player, class: type };
     if (type === ClassType.WARRIOR) { basePlayer.maxHealth = 120; basePlayer.health = 120; basePlayer.attack = 12; }
@@ -205,13 +242,14 @@ const App: React.FC = () => {
         player: basePlayer, 
         currentBiome: selectedBiome, 
         tone: selectedTone,
-        narrativeLog: [initialNarrative]
+        narrativeLog: [initialNarrative],
+        turn: 1
     });
     setCurrentView('play');
   };
 
   if (currentView === 'landing') {
-    return <LandingPage onStart={() => setCurrentView('setup')} />;
+    return <LandingPage onStart={() => setCurrentView('setup')} onContinue={handleContinue} hasSave={hasSave} />;
   }
 
   if (currentView === 'setup') {
@@ -381,7 +419,11 @@ const App: React.FC = () => {
               <Icons.Gold />
             </div>
           </div>
-          <button onClick={() => { setGameState(initialState); setCurrentView('landing'); }} className="p-2 text-neutral-600 hover:text-orange-500 transition-colors bg-black/40 rounded border border-white/5">
+          <button 
+            onClick={handleReset} 
+            title="Reset Game"
+            className="p-2 text-neutral-600 hover:text-red-500 transition-colors bg-black/40 rounded border border-white/5"
+          >
              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
           </button>
         </div>
@@ -508,7 +550,7 @@ const App: React.FC = () => {
                     </div>
 
                     <button 
-                        onClick={() => { setGameState(initialState); setCurrentView('landing'); }}
+                        onClick={handleReset}
                         className="bg-white text-black px-12 py-3 font-bold cinzel hover:bg-neutral-200 transition-all text-xs tracking-widest active:scale-95 shadow-[0_0_30px_rgba(255,255,255,0.2)]"
                     >
                         Reincarnate
