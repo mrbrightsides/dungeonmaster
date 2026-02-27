@@ -68,7 +68,7 @@ const NarrativePanel: React.FC<NarrativePanelProps> = ({ logs, isThinking, onNar
             return (
                 <div 
                     key={i} 
-                    className={`text-sm md:text-base leading-relaxed animate-in slide-in-from-bottom-2 duration-300 ${
+                    className={`text-sm md:text-base leading-relaxed whitespace-pre-wrap animate-in slide-in-from-bottom-2 duration-300 ${
                         isUser ? 'text-orange-400 font-bold italic pl-2 border-l-2 border-orange-900' : 'text-neutral-200'
                     }`}
                 >
