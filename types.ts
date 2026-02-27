@@ -133,6 +133,7 @@ export interface AIResponse {
   };
   itemDrop?: Item;
   statChanges?: Partial<GameState['player']>;
+  enemyStatChanges?: Partial<Pick<Enemy, 'health' | 'attack'>>;
   newStatusEffects?: {
     target: 'player' | 'enemy';
     effect: StatusEffect;
