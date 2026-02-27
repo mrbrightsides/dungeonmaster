@@ -38,7 +38,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart, onContinue, hasSave 
           </div>
 
           <p className="text-neutral-400 text-base md:text-xl max-w-3xl mx-auto font-light leading-relaxed px-4 md:px-0 opacity-80">
-            Experience the next evolution of roleplaying. Every monster, plot twist, and cinematic description is generated in real-time by <span className="text-orange-500 font-bold border-b border-orange-500/20">Gemini 3</span>.
+            Experience the next evolution of roleplaying. Every monster, plot twist, and cinematic description is generated in real-time by <span className="text-orange-500 font-bold border-b border-orange-500/20">Gemini 3.1</span>.
           </p>
 
           <div className="pt-8 flex flex-col items-center gap-6">
@@ -79,7 +79,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart, onContinue, hasSave 
             {
               title: "Infinite Narrative",
               icon: "📜",
-              desc: "Traditional scripts are dead. Gemini 3 crafts a living world that remembers your choices and evolves with every step."
+              desc: "Traditional scripts are dead. Gemini 3.1 crafts a living world that remembers your choices and evolves with every step."
             },
             {
               title: "Cinematic Voice",
