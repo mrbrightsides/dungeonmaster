@@ -18,7 +18,9 @@ async function decodeAudioData(
   sampleRate: number,
   numChannels: number,
 ): Promise<AudioBuffer> {
-  const dataInt16 = new Int16Array(data.buffer);
+  // Ensure the byte length is a multiple of 2 for Int16Array
+  const alignedLength = data.length - (data.length % 2);
+  const dataInt16 = new Int16Array(data.buffer, 0, alignedLength / 2);
   const frameCount = dataInt16.length / numChannels;
   const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
 
@@ -30,8 +32,6 @@ async function decodeAudioData(
   }
   return buffer;
 }
-
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
 
 const updateGameStateTool = {
   name: "updateGameState",
@@ -111,6 +111,13 @@ const updateGameStateTool = {
           defense: { type: Type.NUMBER }
         }
       },
+      enemyStatChanges: {
+        type: Type.OBJECT,
+        properties: {
+          health: { type: Type.NUMBER, description: "Change in enemy health (negative for damage)." },
+          attack: { type: Type.NUMBER, description: "Change in enemy attack." }
+        }
+      },
       newStatusEffects: {
         type: Type.ARRAY,
         items: {
@@ -149,6 +156,8 @@ export async function processPlayerAction(
   action: string,
   state: GameState
 ): Promise<AIResponse> {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+  const ai = new GoogleGenAI({ apiKey: apiKey! });
   const prompt = `
     Roleplay as a cinematic Dungeon Master. The player is a ${state.player.class} (Level ${state.player.level}).
     Current Environment: ${state.currentBiome}
@@ -169,11 +178,12 @@ export async function processPlayerAction(
     3. COUNTER-PLAY: If a player is a Mage, enemies might use 'Magic Resist' buffs. If a Rogue is dodging, they might use 'Wide Sweeps' (can't miss).
     4. NARRATIVE: Focus on the visceral impact of the combat. Adhere to the ${state.tone} tone.
     5. STATUS EFFECTS: Use them strategically. Bleeding for sustain damage, Stunned to skip player turns (by reducing their effectiveness in narrative), or Weakened to lower attack.
+    6. DAMAGE CALCULATION: When the player attacks, use 'enemyStatChanges' to reduce enemy health. Be consistent with the player's level and class power.
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-3.1-pro-preview",
       contents: prompt,
       config: {
         tools: [{ functionDeclarations: [updateGameStateTool] }],
@@ -199,8 +209,28 @@ export async function processPlayerAction(
   }
 }
 
+let audioContext: AudioContext | null = null;
+
+export async function resumeAudioContext() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    }
+    if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+    }
+}
+
 export async function playNarrativeAudio(text: string): Promise<void> {
     try {
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+        if (!apiKey) {
+            console.warn("No API key found for TTS");
+            return;
+        }
+        
+        await resumeAudioContext();
+        
+        const ai = new GoogleGenAI({ apiKey });
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash-preview-tts",
             contents: [{ parts: [{ text: `Read with a gravelly, wise, epic dungeon master voice: ${text}` }] }],
@@ -217,12 +247,12 @@ export async function playNarrativeAudio(text: string): Promise<void> {
         const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
         if (!base64Audio) return;
 
-        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-        const audioBuffer = await decodeAudioData(decode(base64Audio), ctx, 24000, 1);
+        const audioData = decode(base64Audio);
+        const audioBuffer = await decodeAudioData(audioData, audioContext!, 24000, 1);
 
-        const source = ctx.createBufferSource();
+        const source = audioContext!.createBufferSource();
         source.buffer = audioBuffer;
-        source.connect(ctx.destination);
+        source.connect(audioContext!.destination);
         source.start();
     } catch (e) {
         console.warn("TTS suppressed or failed", e);
