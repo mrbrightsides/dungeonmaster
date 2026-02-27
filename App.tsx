@@ -72,6 +72,7 @@ const App: React.FC = () => {
   const [toasts, setToasts] = useState<string[]>([]);
   const [hasSave, setHasSave] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
   const [enemyAbilityDisplay, setEnemyAbilityDisplay] = useState<string | null>(null);
 
   const [selectedBiome, setSelectedBiome] = useState<BiomeType>(BiomeType.FOREST);
@@ -169,7 +170,7 @@ const App: React.FC = () => {
 
     setGameState(prev => {
       let newState = { ...prev };
-      newState.narrativeLog = [...newState.narrativeLog, response.narrative];
+      let turnMessages = [response.narrative];
       
       if (response.statChanges) {
         const changes = response.statChanges;
@@ -211,18 +212,31 @@ const App: React.FC = () => {
         newState.player.level += 1;
         newState.player.maxHealth += 20;
         newState.player.health = newState.player.maxHealth;
-        newState.narrativeLog.push("✨ LEVEL UP! You feel a surge of power coursing through your veins.");
+        turnMessages.push("✨ LEVEL UP! You feel a surge of power coursing through your veins.");
         addToast("✨ Level Up!");
         SoundManager.play('level_up');
       }
 
       if (response.enemyToSpawn) {
-        newState.currentEnemy = { ...response.enemyToSpawn, statusEffects: [] };
+        const isSameEnemy = newState.currentEnemy && newState.currentEnemy.name === response.enemyToSpawn.name;
+        newState.currentEnemy = { 
+            ...response.enemyToSpawn, 
+            statusEffects: isSameEnemy ? newState.currentEnemy!.statusEffects : [] 
+        };
+      }
+
+      if (response.enemyStatChanges && newState.currentEnemy) {
+        const eChanges = response.enemyStatChanges;
+        newState.currentEnemy = {
+          ...newState.currentEnemy,
+          health: Math.min(newState.currentEnemy.maxHealth, Math.max(0, (newState.currentEnemy.health + (eChanges.health || 0)))),
+          attack: newState.currentEnemy.attack + (eChanges.attack || 0)
+        };
       }
 
       if (newState.currentEnemy && newState.currentEnemy.health <= 0) {
           newState.stats.enemiesDefeated += 1;
-          newState.narrativeLog.push(`💀 The ${newState.currentEnemy.name} collapses into the dust.`);
+          turnMessages.push(`💀 The ${newState.currentEnemy.name} collapses into the dust.`);
           newState.player.gold += 15;
           newState.player.xp += 25;
           newState.currentEnemy = null;
@@ -259,7 +273,7 @@ const App: React.FC = () => {
 
       if (response.itemDrop) {
         newState.player.inventory = [...newState.player.inventory, response.itemDrop];
-        newState.narrativeLog.push(`🎁 Found: ${response.itemDrop.name} (${response.itemDrop.rarity})`);
+        turnMessages.push(`🎁 Found: ${response.itemDrop.name} (${response.itemDrop.rarity})`);
         addToast(`🎁 Found ${response.itemDrop.name}`);
         SoundManager.play('item');
       }
@@ -267,9 +281,10 @@ const App: React.FC = () => {
       if (newState.player.health <= 0) {
         newState.player.health = 0;
         newState.isGameOver = true;
-        newState.narrativeLog.push("🔴 Darkness finally claims you. The dungeon master closes the book.");
+        turnMessages.push("🔴 Darkness finally claims you. The dungeon master closes the book.");
       }
 
+      newState.narrativeLog = [...prev.narrativeLog, turnMessages.join('\n\n')];
       return newState;
     });
 
@@ -277,7 +292,7 @@ const App: React.FC = () => {
   };
 
   const handleNarrativeComplete = (text: string) => {
-    if (text.length > 20) {
+    if (isVoiceEnabled && text.length > 20) {
       playNarrativeAudio(text);
     }
   };
@@ -302,6 +317,15 @@ const App: React.FC = () => {
   const toggleMute = () => {
     const newVal = SoundManager.toggleMute();
     setIsMuted(newVal);
+  };
+
+  const toggleVoice = async () => {
+    setIsVoiceEnabled(prev => !prev);
+    SoundManager.play('click');
+    
+    // Resume AudioContext on user gesture
+    const { resumeAudioContext } = await import('./services/gemini');
+    await resumeAudioContext();
   };
 
   const startGameWithClass = (type: ClassType) => {
@@ -521,7 +545,7 @@ const App: React.FC = () => {
                                         {Object.entries(e.modifiers).map(([stat, val]) => (
                                             <div key={stat} className="flex justify-between text-[8px] uppercase tracking-tighter">
                                                 <span className="text-neutral-500">{stat}</span>
-                                                <span className={val > 0 ? 'text-green-400' : 'text-red-400'}>{val > 0 ? '+' : ''}{val}</span>
+                                                <span className={(val as number) > 0 ? 'text-green-400' : 'text-red-400'}>{(val as number) > 0 ? '+' : ''}{val as number}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -545,6 +569,15 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-1">
+            <button 
+              onClick={toggleVoice}
+              title={isVoiceEnabled ? "Disable Voice" : "Enable Voice"}
+              className={`p-2 transition-colors bg-black/40 rounded border ${isVoiceEnabled ? 'text-orange-500 border-orange-500/50 shadow-[0_0_10px_rgba(245,158,11,0.2)]' : 'text-neutral-600 border-white/5'}`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+              </svg>
+            </button>
             <button 
               onClick={toggleMute}
               title={isMuted ? "Unmute" : "Mute"}
