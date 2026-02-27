@@ -6,9 +6,9 @@ AI Dungeon Master leverages state-of-the-art AI models to provide an immersive, 
 
 The core of the application is powered by the **@google/genai** SDK.
 
-### 1. Narrative & Logic: Gemini 3 Pro Preview
+### 1. Narrative & Logic: Gemini 3.1 Pro Preview
 Used for generating complex storylines, managing game state via **Function Calling**, and maintaining long-term context.
-- **Model:** `gemini-3-pro-preview`
+- **Model:** `gemini-3.1-pro-preview`
 - **Key Features:** Large thinking budget for complex reasoning, high-fidelity world building.
 
 ### 2. Voice Narration: Gemini 2.5 Flash Preview TTS
