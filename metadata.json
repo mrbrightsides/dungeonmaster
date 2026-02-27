@@ -1,6 +1,6 @@
 {
   "name": "AI Dungeon Master",
-  "description": "An infinite 2D dungeon crawler powered by Gemini 3, featuring dynamic narratives, turn-based combat, and real-time world adaptation.",
+  "description": "An infinite 2D dungeon crawler powered by Gemini 3.1, featuring dynamic narratives, turn-based combat, and real-time world adaptation.",
   "requestFramePermissions": [
     "microphone"
   ]
